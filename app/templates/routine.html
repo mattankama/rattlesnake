@@ -4,7 +4,7 @@
 {% block content %}
 <div class="routine-container">
     <header class="routine-header">
-        <a href="/" class="back-link">← Back</a>
+        <a href="{{ url_for('views.home') }}" class="back-link">← Back</a>
         <h1 class="page-title" id="page-title">New Routine</h1>
     </header>
 
@@ -24,7 +24,7 @@
 
         <div class="form-actions">
             <button type="submit" class="btn btn-accent" id="save-routine-btn">Save Routine</button>
-            <a href="/" class="btn btn-muted">Cancel</a>
+            <a href="{{ url_for('views.home') }}" class="btn btn-muted">Cancel</a>
         </div>
     </form>
 

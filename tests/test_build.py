@@ -11,7 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from build_static import PAGES, build, build_token  # noqa: E402
+from build_static import PAGES, build, build_token, normalise_base  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -99,3 +99,39 @@ class TestBuildToken:
         worker = own / "sw.js"
         worker.write_text(worker.read_text() + "\n// a worker-only fix\n")
         assert build_token([p for p in own.rglob("*") if p.is_file()]) != token
+
+
+@pytest.fixture(scope="module")
+def pages_dist(tmp_path_factory):
+    """The build GitHub Pages deploys, served at mattankama.github.io/rattlesnake/."""
+    return build(tmp_path_factory.mktemp("pages"), base="/rattlesnake/")
+
+
+class TestBuildUnderAPath:
+    def test_layout_does_not_change(self, pages_dist):
+        """The host adds the path; the folder is the same shape."""
+        for target in PAGES.values():
+            assert (pages_dist / target).is_file(), target
+        assert (pages_dist / "sw.js").is_file()
+
+    def test_pages_point_inside_the_app(self, pages_dist):
+        for target in PAGES.values():
+            page = (pages_dist / target).read_text()
+            assert 'src="/rattlesnake/static/js/app.js"' in page, target
+            assert 'data-base="/rattlesnake"' in page, target
+            assert 'src="/static' not in page, target
+            assert 'href="/static' not in page, target
+
+    def test_the_default_build_stays_at_the_root(self, dist):
+        page = (dist / "index.html").read_text()
+        assert 'src="/static/js/app.js"' in page
+        assert 'data-base=""' in page
+
+
+@pytest.mark.parametrize(
+    "given, expected",
+    [("/", "/"), ("", "/"), ("rattlesnake", "/rattlesnake/"), ("/rattlesnake", "/rattlesnake/"),
+     ("/rattlesnake/", "/rattlesnake/"), ("a/b", "/a/b/")],
+)
+def test_normalise_base(given, expected):
+    assert normalise_base(given) == expected

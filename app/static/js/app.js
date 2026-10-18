@@ -4,6 +4,24 @@
  */
 
 /**
+ * The path the app is served under: "" in dev, "/rattlesnake" on GitHub Pages.
+ * base.html writes it onto <html data-base>, from whatever the build was given.
+ */
+const APP_BASE = document.documentElement.dataset.base || "";
+
+/**
+ * A page of this app, by its dev path ("/", "/session/?id=4"), as the browser
+ * needs it. Every link and redirect between pages goes through here. fetchJSON's
+ * "/api/..." routes do not: they never leave the phone, so they have no host path.
+ *
+ * @param {string} path
+ * @returns {string}
+ */
+function appUrl(path) {
+    return APP_BASE + path;
+}
+
+/**
  * The store, loaded from IndexedDB. Every screen waits on this before its first
  * call, so nothing can read an empty database while the rows are still arriving.
  */

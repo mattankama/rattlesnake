@@ -6,12 +6,33 @@
  * Rattlesnake in a basement gym with no bars of signal is the same as opening
  * it at home.
  *
- * Served from the site root (not /static/) because a worker can only control
+ * Served from the app's root (not /static/) because a worker can only control
  * pages at or below its own path, and this one has to control all of them.
  */
 
+/**
+ * The path the app is served under: "" at the root of a host, "/rattlesnake" on
+ * GitHub Pages. The worker sits at the top of the app, so its own folder is it.
+ */
+const ROOT = new URL(".", self.location.href).pathname.replace(/\/$/, "");
+
 const VERSION = "__BUILD__";
-const CACHE = `rattlesnake-${VERSION}`;
+
+// mattankama.github.io serves several sites from one origin, and every cache on
+// an origin is shared — caches.match() searches all of them. So the cache is
+// named for the app's path, and activate only clears this app's old ones.
+const PREFIX = `rattlesnake:${ROOT}/:`;
+const CACHE = PREFIX + VERSION;
+
+// What caches were called before they carried a path: "rattlesnake-" and a
+// build token. Only a worker at the root of the origin ever made them.
+const UNSCOPED = /^rattlesnake-[0-9a-f]{12}$/;
+
+/** A cache this worker owns and has replaced: safe to delete. */
+function isStale(name) {
+    if (name === CACHE) return false;
+    return name.startsWith(PREFIX) || (ROOT === "" && UNSCOPED.test(name));
+}
 
 // The whole app. It is small enough to take in one bite, which is what makes
 // "works offline" true on the first visit rather than after the right pages
@@ -39,7 +60,7 @@ const SHELL = [
     "/static/icons/icon-192.png",
     "/static/icons/icon-512.png",
     "/static/icons/apple-touch-icon.png",
-];
+].map((path) => ROOT + path);
 
 /**
  * Store one shell URL, with the redirected flag stripped.
@@ -80,9 +101,7 @@ self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches
             .keys()
-            .then((names) =>
-                Promise.all(names.filter((name) => name !== CACHE).map((name) => caches.delete(name))),
-            )
+            .then((names) => Promise.all(names.filter(isStale).map((name) => caches.delete(name))))
             .then(() => self.clients.claim()),
     );
 });
@@ -111,10 +130,15 @@ function cacheKeys(request) {
     return paths.map((p) => new Request(url.origin + p));
 }
 
-/** The first of those keys that is actually in the cache. */
+/**
+ * The first of those keys that is actually in this app's cache. Only this app's:
+ * a worker that used to sit at the root of the origin may have cached these
+ * same URLs, and caches.match() would happily serve its stale copies.
+ */
 async function findCached(request) {
+    const cache = await caches.open(CACHE);
     for (const key of cacheKeys(request)) {
-        const hit = await caches.match(key);
+        const hit = await cache.match(key);
         if (hit) return hit;
     }
     return undefined;
@@ -148,7 +172,7 @@ self.addEventListener("fetch", (event) => {
                 // Offline and nothing cached for this exact page: the shell is
                 // still better than the browser's error page, and every route
                 // here renders from the same local data anyway.
-                .catch(() => cached || caches.match("/"));
+                .catch(() => cached || caches.open(CACHE).then((cache) => cache.match(ROOT + "/")));
 
             return cached || network;
         }),

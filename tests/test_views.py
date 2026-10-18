@@ -193,3 +193,71 @@ class TestRetiredRoutes:
         resp = client.get("/routine")
         assert resp.status_code in (301, 308)
         assert resp.headers["Location"].endswith("/routine/")
+
+
+class TestServedUnderAPath:
+    """GitHub Pages serves the build at /rattlesnake/, so every URL a page writes carries it.
+
+    The build renders through the test client with that script root; these are
+    the same requests, so a link that forgets the prefix fails here, not on a phone.
+    """
+
+    BASE = "http://localhost/rattlesnake"
+    PAGES = ("/", "/progress", "/routine/", "/session/")
+
+    def test_dev_pages_have_no_prefix(self, client):
+        data = client.get("/").data
+        assert b'data-base=""' in data
+        assert b'href="/static/css/style.css"' in data
+        assert b'href="/routine/"' in data
+
+    def test_every_page_hands_the_prefix_to_the_scripts(self, client):
+        """app.js reads it to build the URLs it navigates to."""
+        for path in self.PAGES:
+            assert b'data-base="/rattlesnake"' in client.get(path, base_url=self.BASE).data, path
+
+    def test_assets_load_from_under_the_prefix(self, client):
+        for path in self.PAGES:
+            data = client.get(path, base_url=self.BASE).data
+            assert b'href="/rattlesnake/static/css/style.css"' in data, path
+            assert b'src="/rattlesnake/static/js/app.js"' in data, path
+
+    def test_links_between_pages_carry_the_prefix(self, client):
+        assert b'href="/rattlesnake/routine/"' in client.get("/", base_url=self.BASE).data
+        assert b'href="/rattlesnake/"' in client.get("/routine/", base_url=self.BASE).data
+
+    def test_nothing_points_at_the_site_root(self, client):
+        """The site root is another site now: a stray "/" lands the lifter there."""
+        for path in self.PAGES:
+            data = client.get(path, base_url=self.BASE).data
+            for stray in (b'href="/"', b'href="/static', b'src="/static', b'href="/routine/"'):
+                assert stray not in data, f"{stray!r} in {path}"
+
+    def test_worker_registers_under_the_prefix(self, client):
+        """Its folder is its scope: /rattlesnake/, and none of the other sites."""
+        assert b'register("/rattlesnake/sw.js")' in client.get("/", base_url=self.BASE).data
+
+
+class TestManifest:
+    """Static, so it cannot be told the prefix. Relative URLs resolve to the app either way."""
+
+    def _manifest(self, client):
+        import json
+
+        return json.loads(client.get("/static/manifest.webmanifest").data)
+
+    def test_opens_and_scopes_to_the_app_root(self, client):
+        from urllib.parse import urljoin
+
+        manifest = self._manifest(client)
+        for root in ("/", "/rattlesnake/"):
+            url = root + "static/manifest.webmanifest"
+            assert urljoin(url, manifest["start_url"]) == root
+            assert urljoin(url, manifest["scope"]) == root
+
+    def test_icons_resolve_inside_the_static_folder(self, client):
+        from urllib.parse import urljoin
+
+        for icon in self._manifest(client)["icons"]:
+            resolved = urljoin("/rattlesnake/static/manifest.webmanifest", icon["src"])
+            assert resolved.startswith("/rattlesnake/static/icons/"), icon["src"]

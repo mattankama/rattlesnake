@@ -8,11 +8,15 @@ them. The result works on any host that can serve a directory: GitHub Pages,
 Cloudflare Pages, Netlify, an S3 bucket, a USB stick.
 
     python3 scripts/build_static.py
+    python3 scripts/build_static.py --base /rattlesnake/
 
 URLs are preserved exactly as the dev server serves them, `/routine/?id=12` and
-all, so a link that works locally works deployed.
+all, so a link that works locally works deployed. `--base` is for a host that
+serves the folder under a path rather than at its root — GitHub Pages serves
+this repo at mattankama.github.io/rattlesnake/ — and every URL gets that prefix.
 """
 
+import argparse
 import hashlib
 import os
 import shutil
@@ -50,9 +54,21 @@ def build_token(paths):
     return digest.hexdigest()[:12]
 
 
-def build(dist=DIST):
-    """Write the deployable site to `dist`, replacing whatever was there."""
+def normalise_base(base):
+    """`rattlesnake`, `/rattlesnake` and `/rattlesnake/` all mean `/rattlesnake/`."""
+    inner = base.strip("/")
+    return f"/{inner}/" if inner else "/"
+
+
+def build(dist=DIST, base="/"):
+    """Write the deployable site to `dist`, replacing whatever was there.
+
+    `base` is the path the folder will be served under. It reaches the pages as
+    the request's script root, which is where url_for and base.html's data-base
+    read it from; the worker and the manifest work it out for themselves.
+    """
     app = create_app()
+    base_url = "http://localhost" + normalise_base(base).rstrip("/")
 
     DIST_ = dist
     if DIST_.exists():
@@ -67,7 +83,7 @@ def build(dist=DIST):
     # 2. The pages, rendered by the same Flask app that serves them in dev.
     with app.test_client() as client:
         for url, target in PAGES.items():
-            response = client.get(url)
+            response = client.get(url, base_url=base_url)
             if response.status_code != 200:
                 raise SystemExit(f"{url} returned {response.status_code}, expected 200")
             out = DIST_ / target
@@ -90,12 +106,19 @@ def build(dist=DIST):
 
 
 def main():
-    dist = build()
+    parser = argparse.ArgumentParser(description="Build the deployable copy of Rattlesnake into dist/.")
+    parser.add_argument("--base", default="/", help="path the site is served under (default: /)")
+    args = parser.parse_args()
+
+    dist = build(base=args.base)
     files = [p for p in dist.rglob("*") if p.is_file()]
     total = sum(p.stat().st_size for p in files)
     print(f"Built {dist}")
     print(f"  {len(files)} files, {total / 1024:.0f} KB")
-    print("  Serve it locally with: python3 -m http.server -d dist 8000")
+    if normalise_base(args.base) == "/":
+        print("  Serve it locally with: python3 -m http.server -d dist 8000")
+    else:
+        print(f"  Built for {normalise_base(args.base)}: its links only work served from that path")
 
 
 if __name__ == "__main__":

@@ -1,8 +1,12 @@
-# Build Rattlesnake and publish it to GitHub Pages.
+# Build Rattlesnake and publish it to GitHub Pages, at mattankama.github.io/rattlesnake/.
 #
 # There is no backend to deploy: `scripts/build_static.py` renders the four
 # pages and copies the static folder into `dist/`, and that folder is the whole
 # app. This workflow is the same build, run on a push instead of a laptop.
+#
+# The site root, mattankama.github.io/, is a different repo. Its sw.js and
+# index.html keep Home Screen icons from before the move opening this app with
+# their data; see docs/adr/0006-served-from-rattlesnake-path.md.
 #
 # Both suites gate the deploy. The JavaScript one covers the code that actually
 # runs on the phone, so a red run here means a broken app, not a broken build.
@@ -50,7 +54,7 @@ jobs:
         run: python3 -m pytest --cov=app --cov-report=term-missing --cov-fail-under=90
 
       - name: Build dist/
-        run: python3 scripts/build_static.py
+        run: python3 scripts/build_static.py --base /rattlesnake/
 
       - uses: actions/upload-pages-artifact@v3
         with:
