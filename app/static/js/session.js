@@ -627,7 +627,7 @@ async function completeSession() {
         });
         sessionComplete = true;
         stopTimer();
-        window.location.href = "/";
+        window.location.href = appUrl("/");
     } catch (err) {
         btn.disabled = false;
         showError(

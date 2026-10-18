@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+{# data-base: the path the app is served under ("" in dev, "/rattlesnake" on GitHub
+   Pages), for app.js to build page URLs from. url_for already includes it. #}
+<html lang="en" data-base="{{ request.script_root }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -48,7 +50,7 @@
         if ("serviceWorker" in navigator &&
             !["localhost", "127.0.0.1"].includes(location.hostname)) {
             window.addEventListener("load", () => {
-                navigator.serviceWorker.register("/sw.js").catch((err) => {
+                navigator.serviceWorker.register("{{ url_for('views.service_worker') }}").catch((err) => {
                     console.warn("[rattlesnake] service worker did not register", err);
                 });
             });

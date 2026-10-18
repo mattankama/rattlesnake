@@ -50,6 +50,7 @@ function loadHome(sweep) {
         clearError() {},
         showError() {},
         escapeHTML: (s) => s,
+        appUrl: (path) => path,
     };
     vm.createContext(sandbox);
     vm.runInContext(fs.readFileSync(HOME_JS, "utf8"), sandbox);

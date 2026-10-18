@@ -21,8 +21,8 @@
  */
 
 const PANES = [
-    { id: "pane-home", path: "/", title: "Rattlesnake" },
-    { id: "pane-progress", path: "/progress", title: "Progress — Rattlesnake" },
+    { id: "pane-home", path: appUrl("/"), title: "Rattlesnake" },
+    { id: "pane-progress", path: appUrl("/progress"), title: "Progress — Rattlesnake" },
 ];
 
 /**

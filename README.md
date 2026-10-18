@@ -21,6 +21,10 @@ changed. All data stays on your phone.
 - **Progress** — a weight trend for one exercise on one instance, plus the exact numbers.
   Slide left from Home to reach it.
 
-Add it to your Home Screen. It stops Safari from clearing
-your data after seven days of not visiting.
+Open it at **https://mattankama.github.io/rattlesnake/** and add it to your Home Screen. It
+stops Safari from clearing your data after seven days of not visiting.
+
+Added it before October 2026, when it lived at `mattankama.github.io/`? **Keep that icon.** It
+still opens Rattlesnake with all your workouts. On iPhone, deleting a Home Screen app deletes its
+data, and adding Rattlesnake again would start empty.
 

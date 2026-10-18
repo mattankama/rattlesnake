@@ -58,7 +58,7 @@ function loadPage() {
     const listeners = [];
     const noop = () => {};
     const element = new Proxy(
-        { style: {}, classList: { add: noop, remove: noop, toggle: noop, contains: () => false },
+        { style: {}, dataset: {}, classList: { add: noop, remove: noop, toggle: noop, contains: () => false },
           addEventListener: noop, appendChild: noop, prepend: noop, remove: noop,
           setAttribute: noop, getAttribute: () => null, querySelector: () => null,
           querySelectorAll: () => [], focus: noop, textContent: "", innerHTML: "", value: "" },

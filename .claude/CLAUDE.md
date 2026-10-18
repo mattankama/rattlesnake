@@ -52,8 +52,8 @@ Two things to know about the bundled library, because its skills were written ge
 | `app/static/js/store.js` | In-memory relational store — the domain model in CONTEXT.md, in code |
 | `app/static/js/local-api.js` | **The API.** Twenty-two routes, all the domain logic, on the device |
 | `app/static/js/persist.js` | IndexedDB mirror — loads on boot, writes behind, `settled()` |
-| `app/static/sw.js` | Offline shell; served from the site root for scope |
-| `scripts/build_static.py` | Renders the four pages into `dist/` for deployment |
+| `app/static/sw.js` | Offline shell; served from the app's root for scope (`/rattlesnake/sw.js` live) |
+| `scripts/build_static.py` | Renders the four pages into `dist/`; `--base` for a host that serves it under a path |
 | `app/templates/` | `base`, `pager` (+ `_pane_home`, `_pane_progress`), `routine`, `session` |
 | `app/static/css/style.css` | The whole FORGE system; the only stylesheet |
 | `tests/` | pytest suite — page rendering and the build. `conftest.py` holds the fixtures |
@@ -68,7 +68,7 @@ Two things to know about the bundled library, because its skills were written ge
 - **Both suites have to pass, and the JavaScript one is the important one.**
   `node --test tests/js/*.test.js` — nothing to install — covers the code
   that actually runs on the phone. `python3 -m pytest --cov=app --cov-report=term-missing` —
-  currently 46 tests, 100%, and **90% coverage is the floor** — covers only page rendering and
+  currently 63 tests, 100%, and **90% coverage is the floor** — covers only page rendering and
   the build, so a green pytest run says almost nothing about the app. Fix failures and coverage
   regressions immediately; never report work as done while either is red, and never lower the
   bar to make a run pass.
@@ -81,6 +81,12 @@ Two things to know about the bundled library, because its skills were written ge
   any static host. Check it first with `python3 -m http.server -d dist 8000`. The service worker
   is deliberately not registered on `localhost`/`127.0.0.1`, so its cache can never serve you a
   stale file mid-edit; that also means offline has to be tested from a real deployment.
+- **Live, it is served from `mattankama.github.io/rattlesnake/`**, built with
+  `--base /rattlesnake/` by `.github/workflows/deploy.yml`. So every link between pages goes
+  through `url_for` in templates or `appUrl()` in JS: a bare `"/"` is the site root, which is
+  another site. Until October 2026 the app lived at that root, and the root repository's `sw.js`,
+  `index.html` and `404.html` keep installs from then working — see
+  [docs/adr/0006](../docs/adr/0006-served-from-rattlesnake-path.md).
 - **Mobile is the target, not an afterthought.** Every change has to hold up one-handed at
   phone width, mid-set, in bad gym light. Interactive controls stay ≥44×44px.
 - **Dark-mode-only.** Light mode is deliberately unimplemented; don't add it, and don't add a

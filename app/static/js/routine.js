@@ -278,7 +278,7 @@ async function saveRoutine(e) {
                 body: JSON.stringify(payload),
             });
         }
-        window.location.href = "/";
+        window.location.href = appUrl("/");
     } catch (err) {
         saveBtn.disabled = false;
         showError(container, `Could not save this routine: ${err.message}`);
@@ -309,7 +309,7 @@ async function deleteRoutine() {
 
     try {
         await fetchJSON(`/api/routines/${window.ROUTINE_ID}`, { method: "DELETE" });
-        window.location.href = "/";
+        window.location.href = appUrl("/");
     } catch (err) {
         btn.disabled = false;
         hideDeleteConfirm();

@@ -19,10 +19,24 @@ const vm = require("node:vm");
 const SW = path.join(__dirname, "../../app/static/sw.js");
 const ORIGIN = "https://rattlesnake.example";
 
-/** Load sw.js into a fake worker global, with a cache we control. */
-function loadWorker({ precached = [], online = true, redirects = [] } = {}) {
+/**
+ * Load sw.js into a fake worker global, with a cache we control.
+ *
+ * `root` is where the worker is served from: "" for the root of a host,
+ * "/rattlesnake" for GitHub Pages. `cacheNames` is every cache already on the
+ * origin, for the activate handler to sort through.
+ */
+function loadWorker({ precached = [], online = true, redirects = [], root = "", cacheNames = [] } = {}) {
     const stored = new Map(precached.map((url) => [ORIGIN + url, { body: `body:${url}`, redirected: false }]));
     const listeners = {};
+    const deleted = [];
+
+    const lookup = async (request) => {
+        const url = typeof request === "string" ? ORIGIN + request : request.url;
+        if (!stored.has(url)) return undefined;
+        const entry = stored.get(url);
+        return { ...entry, ok: true, clone: () => ({ ...entry }) };
+    };
 
     const cache = {
         add: async (url) => stored.set(ORIGIN + url, { body: `body:${url}`, redirected: false }),
@@ -31,6 +45,7 @@ function loadWorker({ precached = [], online = true, redirects = [] } = {}) {
             stored.set(url, { body: response.body, redirected: !!response.redirected });
         },
         keys: async () => [...stored.keys()].map((url) => ({ url })),
+        match: lookup,
     };
 
     const context = {
@@ -40,14 +55,9 @@ function loadWorker({ precached = [], online = true, redirects = [] } = {}) {
         Request: class { constructor(url) { this.url = String(url); this.method = "GET"; } },
         caches: {
             open: async () => cache,
-            keys: async () => ["rattlesnake-old"],
-            delete: async () => true,
-            match: async (request) => {
-                const url = typeof request === "string" ? ORIGIN + request : request.url;
-                if (!stored.has(url)) return undefined;
-                const entry = stored.get(url);
-                return { ...entry, ok: true, clone: () => ({ ...entry }) };
-            },
+            keys: async () => cacheNames,
+            delete: async (name) => { deleted.push(name); return true; },
+            match: lookup,
         },
         // A Response rebuilt from a body has no redirected flag — that is the
         // whole point of precache(), so the stub has to model it.
@@ -79,7 +89,7 @@ function loadWorker({ precached = [], online = true, redirects = [] } = {}) {
             };
         },
         self: {
-            location: { origin: ORIGIN },
+            location: { origin: ORIGIN, href: `${ORIGIN}${root}/sw.js` },
             addEventListener: (type, fn) => { listeners[type] = fn; },
             skipWaiting: async () => {},
             clients: { claim: async () => {} },
@@ -111,7 +121,17 @@ function loadWorker({ precached = [], online = true, redirects = [] } = {}) {
         return handled ? await responded : undefined;
     };
 
+    /** Run the activate handler, as the browser does once install is done. */
+    const request_activate = async () => {
+        let done;
+        await listeners.activate({ waitUntil: (p) => { done = p; } });
+        await done;
+    };
+
     request.install = request_install;
+    request.activate = request_activate;
+    request.deleted = deleted;
+    request.cacheName = vm.runInContext("CACHE", context);
     request.stored = stored;
     // `const` stays in the script's lexical scope rather than landing on the
     // context, so the worker's own shell list is read by evaluating it in place.
@@ -222,5 +242,71 @@ test("service worker, precaching", async (t) => {
     await t.test("one unreachable URL does not sink the whole install", async () => {
         const request = loadWorker({ online: false });
         await assert.doesNotReject(() => request.install());
+    });
+});
+
+test("service worker, served under a path", async (t) => {
+    // GitHub Pages serves the app at mattankama.github.io/rattlesnake/, with the
+    // worker at /rattlesnake/sw.js. Everything it caches and falls back to has to
+    // carry that path, or the gym gets the browser's offline page.
+
+    await t.test("precaches the app under its own path", async () => {
+        const request = loadWorker({ online: true, root: "/rattlesnake" });
+        await request.install();
+        for (const path of request.shell) {
+            assert.ok(path.startsWith("/rattlesnake/"), `${path} is outside the app`);
+            assert.ok(request.stored.has(ORIGIN + path), `${path} was not precached`);
+        }
+        assert.ok(request.stored.has(ORIGIN + "/rattlesnake/session/"));
+    });
+
+    await t.test("a session URL offline is served by the cached page", async () => {
+        const request = loadWorker({ precached: ["/rattlesnake/session/"], online: false, root: "/rattlesnake" });
+        assert.equal((await request("/rattlesnake/session/?id=2"))?.body, "body:/rattlesnake/session/");
+    });
+
+    await t.test("falls back to the app's home, not the site's", async () => {
+        const request = loadWorker({ precached: ["/", "/rattlesnake/"], online: false, root: "/rattlesnake" });
+        assert.equal((await request("/rattlesnake/progress"))?.body, "body:/rattlesnake/");
+    });
+});
+
+test("service worker, clearing old caches", async (t) => {
+    // Every cache on an origin is shared, and mattankama.github.io serves several
+    // sites from one. A worker that deletes every cache but its own wipes theirs.
+
+    await t.test("names its cache for the path it serves", () => {
+        assert.equal(loadWorker({ root: "/rattlesnake" }).cacheName, "rattlesnake:/rattlesnake/:__BUILD__");
+        assert.equal(loadWorker({ root: "" }).cacheName, "rattlesnake:/:__BUILD__");
+    });
+
+    await t.test("clears its own previous versions", async () => {
+        const request = loadWorker({
+            root: "/rattlesnake",
+            cacheNames: ["rattlesnake:/rattlesnake/:0123456789ab", "rattlesnake:/rattlesnake/:__BUILD__"],
+        });
+        await request.activate();
+        assert.deepEqual(request.deleted, ["rattlesnake:/rattlesnake/:0123456789ab"]);
+    });
+
+    await t.test("leaves other sites' caches on the origin alone", async () => {
+        // The unscoped one belongs to the worker that sat at the site root before
+        // the move. Retiring it is the root site's job (its own sw.js).
+        const request = loadWorker({
+            root: "/rattlesnake",
+            cacheNames: ["intonation-v1", "home-v1", "rattlesnake:/:0123456789ab", "rattlesnake-0123456789ab"],
+        });
+        await request.activate();
+        assert.deepEqual(request.deleted, []);
+    });
+
+    await t.test("at the root of a host, also clears the caches it made before they had a path", async () => {
+        // Left behind, they would win: caches.match() searches oldest first.
+        const request = loadWorker({
+            root: "",
+            cacheNames: ["rattlesnake-0123456789ab", "rattlesnake:/:0123456789ab", "intonation-v1"],
+        });
+        await request.activate();
+        assert.deepEqual(request.deleted, ["rattlesnake-0123456789ab", "rattlesnake:/:0123456789ab"]);
     });
 });
