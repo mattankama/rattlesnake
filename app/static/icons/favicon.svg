@@ -1,37 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Rattlesnake">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" role="img" aria-label="Rattlesnake">
   <title>Rattlesnake</title>
-  <rect width="512" height="512" fill="#191D24"/>
-  <g transform="translate(290,285) scale(1.18) translate(-290,-285)">
-  <defs>
-    <path id="rs-body"
-          d="M 372 186
-             C 372 126, 306 112, 266 150
-             C 226 188, 254 246, 284 276
-             C 318 310, 310 374, 242 390
-             C 168 404, 106 364, 110 306
-             C 114 250, 170 228, 218 246
-             C 268 264, 300 302, 336 332"/>
-  </defs>
-  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <!-- tail taper into the rattle -->
-    <path d="M 330 330 C 356 346, 378 358, 398 368" stroke="#B87D4B" stroke-width="38"/>
-    <path d="M 384 360 C 396 366, 406 372, 415 377" stroke="#B87D4B" stroke-width="26"/>
-    <!-- body -->
-    <use href="#rs-body" stroke="#B87D4B" stroke-width="54"/>
-    <!-- dorsal blotches: identical geometry, narrower dashed Surface stroke -->
-    <use href="#rs-body" stroke="#191D24" stroke-width="26" stroke-dasharray="26 52" stroke-dashoffset="44"/>
+  <defs><clipPath id="frame"><rect width="56" height="56" rx="12.25"/></clipPath></defs>
+  <rect width="56" height="56" rx="12.25" fill="#ffffff"/>
+  <g clip-path="url(#frame)">
+    <!-- The head from above: blunt snout, flaring to the jaw, the neck running out of the frame -->
+    <path d="M28 8 C30.4 8 32.2 8.8 33 10.6 C35.8 16.6 39.6 23.6 41.8 28.2 C43 30.8 42.8 33.2 41 35 C39.4 36.6 37 38 35.8 40.2 C35.2 41.4 35.2 43.4 35.3 45 C35.5 49.5 36 53.5 36.6 58 L19.4 58 C20 53.5 20.5 49.5 20.7 45 C20.8 43.4 20.8 41.4 20.2 40.2 C19 38 16.6 36.6 15 35 C13.2 33.2 13 30.8 14.2 28.2 C16.4 23.6 20.2 16.6 23 10.6 C23.8 8.8 25.6 8 28 8 Z" fill="#E2610F"/>
+    <!-- The first diamonds of the diamondback, in the faded orange -->
+    <path d="M28 42.8 L32.4 47.6 L28 52.4 L23.6 47.6 Z M28 52.5 L32.7 57.6 L28 62.7 L23.3 57.6 Z" fill="#ffffff" opacity="0.6"/>
   </g>
-  <!-- head: just over body width, tilted nose-down to the right -->
-  <g transform="rotate(-16 380 176)">
-    <ellipse cx="380" cy="176" rx="42" ry="31" fill="#B87D4B"/>
-    <circle cx="400" cy="166" r="8" fill="#191D24"/>
-  </g>
-  <!-- rattle, within the maskable safe zone -->
-  <g fill="#799496">
-    <ellipse cx="425" cy="383" rx="16" ry="13" transform="rotate(30 425 383)"/>
-    <ellipse cx="444" cy="395" rx="13" ry="10" transform="rotate(30 444 395)"/>
-    <ellipse cx="459" cy="405" rx="10" ry="8"  transform="rotate(30 459 405)"/>
-  </g>
-
-  </g>
+  <!-- Eyes on the edges of the head, as they sit seen from above -->
+  <ellipse cx="34.2" cy="17.6" rx="1.25" ry="2.2" transform="rotate(-26 34.2 17.6)" fill="#ffffff"/>
+  <ellipse cx="21.8" cy="17.6" rx="1.25" ry="2.2" transform="rotate(26 21.8 17.6)" fill="#ffffff"/>
 </svg>
